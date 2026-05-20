@@ -1,0 +1,439 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { prisma } from '@/lib/db'
+import { runFetch } from '@/lib/fetchers/run'
+import { isSourceType, SOURCE_TYPES } from '@/lib/sources/types'
+import { categorize, float32ToBytes } from '@/lib/categorize'
+import { runClustering } from '@/lib/cluster'
+
+export async function addSource(formData: FormData) {
+  const type = String(formData.get('type') ?? '')
+  const identifier = String(formData.get('identifier') ?? '').trim()
+  const label = String(formData.get('label') ?? '').trim() || null
+
+  if (!isSourceType(type)) {
+    return { error: `Invalid source type. Must be one of: ${SOURCE_TYPES.join(', ')}` }
+  }
+  if (!identifier) {
+    return { error: 'Identifier is required' }
+  }
+
+  try {
+    await prisma.source.create({ data: { type, identifier, label } })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (message.includes('Unique constraint')) {
+      return { error: 'Source already exists' }
+    }
+    return { error: message }
+  }
+  revalidatePath('/sources')
+  revalidatePath('/')
+  return { ok: true as const }
+}
+
+export async function deleteSource(id: string) {
+  await prisma.source.delete({ where: { id } })
+  revalidatePath('/sources')
+  revalidatePath('/')
+}
+
+export interface LoadMoreOptions {
+  filter?: 'all' | 'unread' | 'saved'
+  source?: string
+  sourceIds?: string[]
+  q?: string
+  category?: string
+  cursor: { publishedAt: string; id: string } | null
+  take?: number
+}
+
+export interface LoadedItem {
+  id: string
+  title: string
+  url: string
+  author: string | null
+  body: string | null
+  thumbnail: string | null
+  publishedAt: string
+  isRead: boolean
+  isSaved: boolean
+  category: string | null
+  source: {
+    id: string
+    type: string
+    identifier: string
+    label: string | null
+  }
+}
+
+export async function loadMoreItems(
+  opts: LoadMoreOptions,
+): Promise<{ items: LoadedItem[]; nextCursor: { publishedAt: string; id: string } | null }> {
+  const take = Math.min(Math.max(opts.take ?? 24, 1), 60)
+  const where: {
+    isRead?: boolean
+    isSaved?: boolean
+    sourceId?: string | { in: string[] }
+    category?: string
+    OR?: Array<Record<string, { contains: string }>>
+    AND?: Array<Record<string, unknown>>
+  } = {}
+  if (opts.filter === 'unread') where.isRead = false
+  if (opts.filter === 'saved') where.isSaved = true
+  if (opts.source) where.sourceId = opts.source
+  else if (opts.sourceIds && opts.sourceIds.length > 0) {
+    where.sourceId = { in: opts.sourceIds }
+  }
+  if (opts.category) where.category = opts.category
+  if (opts.q) {
+    where.OR = [
+      { title: { contains: opts.q } },
+      { body: { contains: opts.q } },
+      { author: { contains: opts.q } },
+    ]
+  }
+  if (opts.cursor) {
+    const cursorDate = new Date(opts.cursor.publishedAt)
+    where.AND = [
+      {
+        OR: [
+          { publishedAt: { lt: cursorDate } },
+          { AND: [{ publishedAt: cursorDate }, { id: { lt: opts.cursor.id } }] },
+        ],
+      },
+    ]
+  }
+
+  const rows = await prisma.item.findMany({
+    where,
+    orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+    take,
+    include: { source: { select: { id: true, type: true, identifier: true, label: true } } },
+  })
+
+  const items: LoadedItem[] = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    url: r.url,
+    author: r.author,
+    body: r.body,
+    thumbnail: r.thumbnail,
+    publishedAt: r.publishedAt.toISOString(),
+    isRead: r.isRead,
+    isSaved: r.isSaved,
+    category: r.category,
+    source: r.source,
+  }))
+
+  const last = items.at(-1)
+  const nextCursor = items.length === take && last
+    ? { publishedAt: last.publishedAt, id: last.id }
+    : null
+
+  return { items, nextCursor }
+}
+
+export async function refreshAll() {
+  const results = await runFetch()
+  const categorized = await categorizeUncategorized()
+  const stories = await runClustering()
+  revalidatePath('/')
+  revalidatePath('/sources')
+  revalidatePath('/stories')
+  return { results, categorized, stories }
+}
+
+async function categorizeUncategorized(): Promise<number> {
+  const items = await prisma.item.findMany({
+    where: { OR: [{ category: null }, { embedding: null }] },
+    select: { id: true, title: true, body: true },
+    take: 500,
+    orderBy: { publishedAt: 'desc' },
+  })
+  let n = 0
+  for (const item of items) {
+    try {
+      const { category, score, embedding } = await categorize(item)
+      await prisma.item.update({
+        where: { id: item.id },
+        data: {
+          category,
+          categoryScore: score,
+          embedding: float32ToBytes(embedding),
+        },
+      })
+      n += 1
+    } catch (err) {
+      console.error('[categorize]', item.id, err)
+    }
+  }
+  return n
+}
+
+export async function categorizeAll() {
+  const n = await categorizeUncategorized()
+  revalidatePath('/')
+  return { categorized: n }
+}
+
+export async function toggleRead(id: string) {
+  const item = await prisma.item.findUnique({ where: { id }, select: { isRead: true } })
+  if (!item) return
+  await prisma.item.update({ where: { id }, data: { isRead: !item.isRead } })
+  revalidatePath('/')
+}
+
+export async function toggleSaved(id: string) {
+  const item = await prisma.item.findUnique({ where: { id }, select: { isSaved: true } })
+  if (!item) return
+  await prisma.item.update({ where: { id }, data: { isSaved: !item.isSaved } })
+  revalidatePath('/')
+}
+
+export async function disconnectAccount(platform: string) {
+  await prisma.account.deleteMany({ where: { platform } })
+  if (platform === 'reddit') {
+    await prisma.source.deleteMany({ where: { type: 'reddit', identifier: '__home__' } })
+  }
+  revalidatePath('/accounts')
+  revalidatePath('/sources')
+  revalidatePath('/')
+}
+
+const REDDIT_PRIVATE_RSS_RE =
+  /^https?:\/\/(?:[\w-]+\.)?reddit\.com\/\.rss\?[^\s]*feed=[a-f0-9]+[^\s]*$/i
+
+export async function connectRedditRss(
+  _prev: { ok?: true; error?: string; username?: string } | null,
+  formData: FormData,
+): Promise<{ ok?: true; error?: string; username?: string }> {
+  const url = String(formData.get('url') ?? '').trim()
+  if (!url) return { error: 'Paste your private Reddit RSS URL.' }
+  if (!REDDIT_PRIVATE_RSS_RE.test(url)) {
+    return {
+      error:
+        "That doesn't look like the private Reddit RSS URL. It should start with https://www.reddit.com/.rss?feed=... and include &user=YOUR_USERNAME.",
+    }
+  }
+  let username = 'unknown'
+  try {
+    const parsed = new URL(url)
+    username = parsed.searchParams.get('user') ?? 'unknown'
+  } catch {
+    return { error: 'Could not parse the URL.' }
+  }
+
+  await prisma.source.deleteMany({
+    where: { type: 'rss', identifier: { contains: 'reddit.com/.rss' } },
+  })
+  await prisma.source.create({
+    data: {
+      type: 'rss',
+      identifier: url,
+      label: `Reddit home (@${username})`,
+    },
+  })
+
+  revalidatePath('/accounts')
+  revalidatePath('/sources')
+  revalidatePath('/')
+  return { ok: true, username }
+}
+
+export async function disconnectReddit() {
+  await prisma.source.deleteMany({
+    where: { type: 'rss', identifier: { contains: 'reddit.com/.rss' } },
+  })
+  revalidatePath('/accounts')
+  revalidatePath('/sources')
+  revalidatePath('/')
+}
+
+export async function disconnectGoogle() {
+  await prisma.account.deleteMany({ where: { platform: 'google' } })
+  const subscriptionSources = await prisma.source.findMany({
+    where: { type: 'youtube' },
+    select: { id: true, config: true },
+  })
+  const toDelete = subscriptionSources
+    .filter((s) => {
+      if (!s.config) return false
+      try {
+        const parsed = JSON.parse(s.config) as { fromSubscription?: boolean }
+        return Boolean(parsed.fromSubscription)
+      } catch {
+        return false
+      }
+    })
+    .map((s) => s.id)
+  if (toDelete.length > 0) {
+    await prisma.source.deleteMany({ where: { id: { in: toDelete } } })
+  }
+  revalidatePath('/accounts')
+  revalidatePath('/sources')
+  revalidatePath('/')
+}
+
+const HN_FEED_LABELS: Record<string, string> = {
+  front: 'HN front page',
+  best: 'HN best',
+  newest: 'HN newest',
+  ask: 'Ask HN',
+  show: 'Show HN',
+  jobs: 'HN jobs',
+}
+
+export async function addHackerNewsFeed(feedName: string) {
+  const id = feedName.trim().toLowerCase()
+  if (!HN_FEED_LABELS[id]) return
+  await prisma.source.upsert({
+    where: { type_identifier: { type: 'hackernews', identifier: id } },
+    update: { enabled: true },
+    create: {
+      type: 'hackernews',
+      identifier: id,
+      label: HN_FEED_LABELS[id],
+    },
+  })
+  revalidatePath('/accounts')
+  revalidatePath('/')
+}
+
+export async function addGithubUser(
+  _prev: { ok?: true; error?: string } | null,
+  formData: FormData,
+): Promise<{ ok?: true; error?: string }> {
+  const raw = String(formData.get('user') ?? '').trim()
+  if (!raw) return { error: 'Enter a GitHub username or owner/repo.' }
+  let identifier = raw.replace(/^@/, '')
+  if (identifier.startsWith('http')) {
+    try {
+      const u = new URL(identifier)
+      if (!/(^|\.)github\.com$/i.test(u.hostname)) {
+        return { error: 'URL must be on github.com.' }
+      }
+      identifier = u.pathname.replace(/^\/+|\/+$/g, '')
+    } catch {
+      return { error: 'Could not parse URL.' }
+    }
+  }
+  if (!identifier) return { error: 'Empty identifier.' }
+  const label = identifier.includes('/') ? identifier : `@${identifier}`
+  try {
+    await prisma.source.create({
+      data: { type: 'github', identifier, label },
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('Unique constraint')) return { error: 'Already added.' }
+    return { error: msg }
+  }
+  revalidatePath('/accounts')
+  revalidatePath('/')
+  return { ok: true }
+}
+
+export async function addMastodonUser(
+  _prev: { ok?: true; error?: string } | null,
+  formData: FormData,
+): Promise<{ ok?: true; error?: string }> {
+  const raw = String(formData.get('handle') ?? '').trim()
+  if (!raw) return { error: 'Enter a Mastodon handle.' }
+  let identifier = raw
+  if (raw.startsWith('http')) {
+    try {
+      const u = new URL(raw)
+      const m = u.pathname.match(/^\/@([\w.-]+)\/?$/)
+      if (!m) return { error: 'Paste a profile URL like https://mastodon.social/@user.' }
+      identifier = `@${m[1]}@${u.hostname}`
+    } catch {
+      return { error: 'Could not parse URL.' }
+    }
+  }
+  const handle = identifier.replace(/^@/, '')
+  const parts = handle.split('@')
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    return { error: 'Use format @user@instance.tld' }
+  }
+  const canonical = `@${parts[0]}@${parts[1]}`
+  try {
+    await prisma.source.create({
+      data: { type: 'mastodon', identifier: canonical, label: canonical },
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('Unique constraint')) return { error: 'Already added.' }
+    return { error: msg }
+  }
+  revalidatePath('/accounts')
+  revalidatePath('/')
+  return { ok: true }
+}
+
+export async function addSubstackPub(
+  _prev: { ok?: true; error?: string } | null,
+  formData: FormData,
+): Promise<{ ok?: true; error?: string }> {
+  const raw = String(formData.get('substack') ?? '').trim()
+  if (!raw) return { error: 'Enter a Substack URL or slug.' }
+
+  let identifier = raw
+  let label = raw
+
+  if (raw.startsWith('http')) {
+    try {
+      const u = new URL(raw)
+      identifier = u.origin
+      label = u.hostname.replace(/^www\./, '')
+    } catch {
+      return { error: 'Could not parse URL.' }
+    }
+  } else {
+    const slug = raw.replace(/^@/, '').toLowerCase()
+    if (!/^[\w-]+$/.test(slug)) {
+      return { error: 'Slug must contain only letters, digits, and dashes.' }
+    }
+    identifier = slug
+    label = `${slug}.substack.com`
+  }
+
+  try {
+    await prisma.source.create({
+      data: { type: 'substack', identifier, label },
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('Unique constraint')) return { error: 'Already added.' }
+    return { error: msg }
+  }
+  revalidatePath('/accounts')
+  revalidatePath('/')
+  return { ok: true }
+}
+
+export async function syncYouTube(): Promise<{
+  ok?: true
+  added?: number
+  updated?: number
+  removed?: number
+  total?: number
+  error?: string
+}> {
+  const { getGoogleAccessToken, syncYouTubeSubscriptions } = await import(
+    '@/lib/google/subscriptions'
+  )
+  const token = await getGoogleAccessToken()
+  if (!token) return { error: 'Google account not connected' }
+  try {
+    const result = await syncYouTubeSubscriptions(token)
+    revalidatePath('/accounts')
+    revalidatePath('/sources')
+    revalidatePath('/')
+    return { ok: true, ...result }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
