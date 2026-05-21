@@ -1,5 +1,6 @@
 import { githubAdapter } from './github'
 import { hackernewsAdapter } from './hackernews'
+import { huggingfaceAdapter } from './huggingface'
 import { mastodonAdapter } from './mastodon'
 import { redditAdapter } from './reddit'
 import { rssAdapter } from './rss'
@@ -15,6 +16,7 @@ const adapters: Record<SourceType, SourceAdapter> = {
   github: githubAdapter,
   mastodon: mastodonAdapter,
   substack: substackAdapter,
+  huggingface: huggingfaceAdapter,
 }
 
 export function getAdapter(type: SourceType): SourceAdapter {

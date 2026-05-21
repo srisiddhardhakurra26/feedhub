@@ -13,23 +13,25 @@ export const dynamic = 'force-dynamic'
 const PAGE_SIZE = 24
 
 const PLATFORM_LABEL: Record<SourceType, string> = {
-  reddit:     'Reddit',
-  youtube:    'YouTube',
-  rss:        'RSS',
-  hackernews: 'Hacker News',
-  github:     'GitHub',
-  mastodon:   'Mastodon',
-  substack:   'Substack',
+  reddit:       'Reddit',
+  youtube:      'YouTube',
+  rss:          'RSS',
+  hackernews:   'Hacker News',
+  github:       'GitHub',
+  mastodon:     'Mastodon',
+  substack:     'Substack',
+  huggingface:  'Hugging Face',
 }
 
 const PLATFORM_ACCENT: Record<SourceType, string> = {
-  reddit:     'text-[#ff4500]',
-  youtube:    'text-[#ff0000]',
-  rss:        'text-[#f26522]',
-  hackernews: 'text-[#ff6600]',
-  github:     'text-zinc-800 dark:text-zinc-200',
-  mastodon:   'text-[#563ACC] dark:text-[#6364ff]',
-  substack:   'text-orange-600',
+  reddit:       'text-[#ff4500]',
+  youtube:      'text-[#ff0000]',
+  rss:          'text-[#f26522]',
+  hackernews:   'text-[#ff6600]',
+  github:       'text-zinc-800 dark:text-zinc-200',
+  mastodon:     'text-[#563ACC] dark:text-[#6364ff]',
+  substack:     'text-orange-600',
+  huggingface:  'text-[#ff9d00]',
 }
 
 interface PageProps {

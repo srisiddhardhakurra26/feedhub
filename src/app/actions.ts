@@ -301,6 +301,28 @@ export async function addHackerNewsFeed(feedName: string) {
   revalidatePath('/')
 }
 
+const HF_FEED_LABELS: Record<string, string> = {
+  models: 'HF trending models',
+  datasets: 'HF trending datasets',
+  spaces: 'HF trending spaces',
+}
+
+export async function addHuggingFaceFeed(feedName: string) {
+  const id = feedName.trim().toLowerCase()
+  if (!HF_FEED_LABELS[id]) return
+  await prisma.source.upsert({
+    where: { type_identifier: { type: 'huggingface', identifier: id } },
+    update: { enabled: true },
+    create: {
+      type: 'huggingface',
+      identifier: id,
+      label: HF_FEED_LABELS[id],
+    },
+  })
+  revalidatePath('/accounts')
+  revalidatePath('/')
+}
+
 export async function addGithubUser(
   _prev: { ok?: true; error?: string } | null,
   formData: FormData,

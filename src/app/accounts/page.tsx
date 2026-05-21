@@ -6,6 +6,7 @@ import { HackerNewsCard } from '@/components/HackerNewsCard'
 import { GithubCard } from '@/components/GithubCard'
 import { MastodonCard } from '@/components/MastodonCard'
 import { SubstackCard } from '@/components/SubstackCard'
+import { HuggingFaceCard } from '@/components/HuggingFaceCard'
 import { AddSourceForm } from '@/components/AddSourceForm'
 
 export const dynamic = 'force-dynamic'
@@ -22,9 +23,16 @@ const TYPE_LABEL: Record<string, string> = {
   github: 'GitHub',
   mastodon: 'Mastodon',
   substack: 'Substack',
+  huggingface: 'Hugging Face',
 }
 
-const PLATFORM_CARD_TYPES = new Set(['hackernews', 'github', 'mastodon', 'substack'])
+const PLATFORM_CARD_TYPES = new Set([
+  'hackernews',
+  'github',
+  'mastodon',
+  'substack',
+  'huggingface',
+])
 
 function extractRedditUsername(identifier: string): string | null {
   try {
@@ -78,6 +86,7 @@ export default async function AccountsPage({ searchParams }: PageProps) {
   const githubSources = platformSources('github')
   const mastodonSources = platformSources('mastodon')
   const substackSources = platformSources('substack')
+  const huggingfaceSources = platformSources('huggingface')
 
   const visibleSources = allSources.filter(
     (s) =>
@@ -113,6 +122,7 @@ export default async function AccountsPage({ searchParams }: PageProps) {
         <GithubCard sources={githubSources} />
         <MastodonCard sources={mastodonSources} />
         <SubstackCard sources={substackSources} />
+        <HuggingFaceCard sources={huggingfaceSources} />
       </section>
 
       <section className="space-y-3">
