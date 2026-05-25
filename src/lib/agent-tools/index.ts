@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { getItemTool } from './get-item'
+import { getItemTextTool } from './get-item-text'
 import { listItemsTool } from './list-items'
 import { listSourcesTool } from './list-sources'
 import { searchItemsTool } from './search-items'
@@ -10,6 +11,7 @@ export const agentTools: AgentTool<any, any>[] = [
   listItemsTool,
   searchItemsTool,
   getItemTool,
+  getItemTextTool,
   listSourcesTool,
 ]
 

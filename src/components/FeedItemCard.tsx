@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { toggleRead, toggleSaved } from '@/app/actions'
 import { PlatformIcon } from './PlatformIcon'
+import { ListenButton } from './ListenButton'
 
 interface FeedItemProps {
   item: {
@@ -167,6 +168,7 @@ export function FeedItemCard({ item }: FeedItemProps) {
               {item.isSaved ? '★ Saved' : '☆ Save'}
             </button>
           </form>
+          <ListenButton itemId={item.id} title={item.title} body={item.body} />
         </div>
       </div>
     </article>
