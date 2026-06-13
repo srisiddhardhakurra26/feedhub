@@ -22,6 +22,7 @@ const PLATFORM_LABEL: Record<SourceType, string> = {
   mastodon:     'Mastodon',
   substack:     'Substack',
   huggingface:  'Hugging Face',
+  bluesky:      'Bluesky',
 }
 
 const PLATFORM_ACCENT: Record<SourceType, string> = {
@@ -33,6 +34,7 @@ const PLATFORM_ACCENT: Record<SourceType, string> = {
   mastodon:     'text-[#563ACC] dark:text-[#6364ff]',
   substack:     'text-orange-600',
   huggingface:  'text-[#ff9d00]',
+  bluesky:      'text-[#0085ff]',
 }
 
 interface PageProps {

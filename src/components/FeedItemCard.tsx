@@ -91,6 +91,12 @@ function getPlatformStyles(type: string) {
         border: 'border-t-2 border-t-[#ff0000] border-zinc-200/50 dark:border-zinc-800/50',
         text: 'text-[#ff0000]',
       }
+    case 'bluesky':
+      return {
+        glow: 'hover:shadow-[0_8px_30px_rgb(0,133,255,0.15)] dark:hover:shadow-[0_8px_30px_rgb(0,133,255,0.3)]',
+        border: 'border-t-2 border-t-[#0085ff] border-zinc-200/50 dark:border-zinc-800/50',
+        text: 'text-[#0085ff]',
+      }
     case 'rss':
     default:
       return {

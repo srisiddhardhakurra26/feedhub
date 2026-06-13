@@ -7,6 +7,7 @@ export const SOURCE_TYPES = [
   'mastodon',
   'substack',
   'huggingface',
+  'bluesky',
 ] as const
 export type SourceType = (typeof SOURCE_TYPES)[number]
 

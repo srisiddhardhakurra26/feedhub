@@ -24,6 +24,7 @@ const TYPE_LABEL: Record<string, string> = {
   mastodon: 'Mastodon',
   substack: 'Substack',
   huggingface: 'Hugging Face',
+  bluesky: 'Bluesky',
 }
 
 const PLATFORM_CARD_TYPES = new Set([
@@ -126,9 +127,17 @@ export default async function AccountsPage({ searchParams }: PageProps) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-medium text-sm text-zinc-600 dark:text-zinc-400">
-          Add anything else (RSS, Reddit subreddit, or specific YouTube channel)
-        </h2>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="font-medium text-sm text-zinc-600 dark:text-zinc-400">
+            Add anything else (website, Bluesky, subreddit, or YouTube channel)
+          </h2>
+          <a
+            href="/discover"
+            className="text-xs font-medium px-3 py-1.5 rounded-full border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-500/20 transition-colors"
+          >
+            ✨ Browse the source directory
+          </a>
+        </div>
         <AddSourceForm />
       </section>
 

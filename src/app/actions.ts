@@ -6,12 +6,14 @@ import { runFetch } from '@/lib/fetchers/run'
 import { isSourceType, SOURCE_TYPES } from '@/lib/sources/types'
 import { categorize, float32ToBytes } from '@/lib/categorize'
 import { runClustering } from '@/lib/cluster'
+import { DIRECTORY } from '@/lib/directory'
 import { searchRankedItems } from '@/lib/search'
+import { discoverFeed } from '@/lib/sources/discover'
 
 export async function addSource(formData: FormData) {
   const type = String(formData.get('type') ?? '')
-  const identifier = String(formData.get('identifier') ?? '').trim()
-  const label = String(formData.get('label') ?? '').trim() || null
+  let identifier = String(formData.get('identifier') ?? '').trim()
+  let label = String(formData.get('label') ?? '').trim() || null
 
   if (!isSourceType(type)) {
     return { error: `Invalid source type. Must be one of: ${SOURCE_TYPES.join(', ')}` }
@@ -20,8 +22,22 @@ export async function addSource(formData: FormData) {
     return { error: 'Identifier is required' }
   }
 
+  // RSS accepts a site URL or bare domain: resolve it to the actual feed and
+  // pick up the feed's own title as the default label.
+  if (type === 'rss') {
+    const found = await discoverFeed(identifier)
+    if (!found) {
+      return {
+        error: `Couldn't find a feed at "${identifier}". Try the exact feed URL.`,
+      }
+    }
+    identifier = found.url
+    label = label ?? found.title ?? null
+  }
+
+  let source
   try {
-    await prisma.source.create({ data: { type, identifier, label } })
+    source = await prisma.source.create({ data: { type, identifier, label } })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (message.includes('Unique constraint')) {
@@ -29,15 +45,59 @@ export async function addSource(formData: FormData) {
     }
     return { error: message }
   }
+
+  // Fetch and categorize the new source immediately so its items show up —
+  // tagged and semantically searchable — without waiting for a Refresh.
+  const [result] = await runFetch([source.id])
+  const categorized = await categorizeUncategorized([source.id])
+
   revalidatePath('/sources')
   revalidatePath('/')
-  return { ok: true as const }
+  revalidatePath('/accounts')
+  return {
+    ok: true as const,
+    newItems: result?.newItems ?? 0,
+    categorized,
+    warning: result && !result.ok ? result.error : undefined,
+  }
 }
 
 export async function deleteSource(id: string) {
   await prisma.source.delete({ where: { id } })
   revalidatePath('/sources')
   revalidatePath('/')
+}
+
+// One-click add from the curated /discover directory. Only entries that exist
+// in DIRECTORY are accepted, and the source is fetched and categorized
+// immediately so the feed has tagged, searchable content the moment the user
+// returns to it.
+export async function addDirectorySource(input: { type: string; identifier: string }) {
+  const entry = DIRECTORY.find(
+    (d) => d.type === input.type && d.identifier === input.identifier,
+  )
+  if (!entry) {
+    return { ok: false as const, error: 'Unknown directory source' }
+  }
+
+  const source = await prisma.source.upsert({
+    where: { type_identifier: { type: entry.type, identifier: entry.identifier } },
+    update: { enabled: true },
+    create: { type: entry.type, identifier: entry.identifier, label: entry.label },
+  })
+
+  const [result] = await runFetch([source.id])
+  const categorized = await categorizeUncategorized([source.id])
+  revalidatePath('/')
+  revalidatePath('/discover')
+  revalidatePath('/accounts')
+
+  return {
+    ok: true as const,
+    newItems: result?.newItems ?? 0,
+    categorized,
+    warning: result && !result.ok ? result.error : undefined,
+  }
 }
 
 // Date cursor for the chronological feed; offset cursor for ranked search
@@ -156,9 +216,12 @@ export async function refreshAll() {
   return { results, categorized, stories }
 }
 
-async function categorizeUncategorized(): Promise<number> {
+async function categorizeUncategorized(sourceIds?: string[]): Promise<number> {
   const items = await prisma.item.findMany({
-    where: { OR: [{ category: null }, { embedding: null }] },
+    where: {
+      OR: [{ category: null }, { embedding: null }],
+      ...(sourceIds && sourceIds.length > 0 ? { sourceId: { in: sourceIds } } : {}),
+    },
     select: { id: true, title: true, body: true },
     take: 500,
     orderBy: { publishedAt: 'desc' },

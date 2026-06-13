@@ -53,6 +53,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/stories" className="font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors">
                 Stories
               </Link>
+              <Link href="/discover" className="font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors">
+                Discover
+              </Link>
               <Link href="/accounts" className="font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors">
                 Accounts
               </Link>

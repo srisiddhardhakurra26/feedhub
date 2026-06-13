@@ -3,7 +3,10 @@
 import { useActionState, useState } from 'react'
 import { addSource } from '@/app/actions'
 
-type State = { ok?: true; error?: string } | null
+type State =
+  | { ok: true; newItems: number; categorized: number; warning?: string }
+  | { error: string }
+  | null
 
 async function action(_prev: State, formData: FormData): Promise<State> {
   return addSource(formData)
@@ -12,9 +15,15 @@ async function action(_prev: State, formData: FormData): Promise<State> {
 const TYPE_OPTIONS: Array<{ value: string; label: string; placeholder: string; hint: string }> = [
   {
     value: 'rss',
-    label: 'RSS',
-    placeholder: 'https://example.com/feed.xml',
-    hint: 'Any RSS or Atom feed URL — blogs, Substacks, news sites.',
+    label: 'RSS / Website',
+    placeholder: 'theverge.com  or  https://example.com/feed.xml',
+    hint: 'Paste a feed URL, a site URL, or just a domain — feedhub finds the feed for you.',
+  },
+  {
+    value: 'bluesky',
+    label: 'Bluesky',
+    placeholder: 'nytimes.com  or  @handle.bsky.social',
+    hint: 'A Bluesky handle or profile URL. Uses the public API — no login needed.',
   },
   {
     value: 'reddit',
@@ -74,8 +83,20 @@ export function AddSourceForm() {
           {isPending ? 'Adding…' : 'Add'}
         </button>
       </div>
-      {state?.error && (
+      {state && 'error' in state && (
         <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
+      )}
+      {state && 'ok' in state && (
+        state.warning ? (
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            Source added, but the first fetch failed: {state.warning}
+          </p>
+        ) : (
+          <p className="text-sm text-emerald-600 dark:text-emerald-400">
+            ✓ Added · {state.newItems} {state.newItems === 1 ? 'item' : 'items'} fetched
+            {state.categorized > 0 && <> · {state.categorized} categorized</>}
+          </p>
+        )
       )}
       <p className="text-xs text-zinc-500 dark:text-zinc-400">{selected.hint}</p>
     </form>

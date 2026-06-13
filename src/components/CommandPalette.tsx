@@ -21,12 +21,14 @@ const PLATFORMS: Array<{ slug: string; label: string }> = [
   { slug: 'github', label: 'GitHub' },
   { slug: 'substack', label: 'Substack' },
   { slug: 'huggingface', label: 'Hugging Face' },
+  { slug: 'bluesky', label: 'Bluesky' },
   { slug: 'rss', label: 'RSS' },
 ]
 
 const STATIC_ACTIONS: Action[] = [
   { id: 'feed', group: 'Pages', label: 'Feed', hint: 'Home', run: (r) => r.push('/') },
   { id: 'stories', group: 'Pages', label: 'Stories', hint: 'Cross-source coverage', run: (r) => r.push('/stories') },
+  { id: 'discover', group: 'Pages', label: 'Discover sources', hint: 'Add free sources', run: (r) => r.push('/discover') },
   { id: 'accounts', group: 'Pages', label: 'Accounts & sources', run: (r) => r.push('/accounts') },
   { id: 'unread', group: 'Filters', label: 'Unread items', run: (r) => r.push('/?filter=unread') },
   { id: 'saved', group: 'Filters', label: 'Saved items', run: (r) => r.push('/?filter=saved') },

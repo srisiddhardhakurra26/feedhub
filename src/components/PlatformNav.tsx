@@ -9,6 +9,7 @@ const PLATFORMS: Array<{ slug: string; label: string; color: string }> = [
   { slug: 'github',     label: 'GitHub',   color: 'text-zinc-800 dark:text-zinc-200' },
   { slug: 'substack',   label: 'Substack', color: 'text-orange-600' },
   { slug: 'huggingface', label: 'HF',      color: 'text-[#ff9d00]' },
+  { slug: 'bluesky',    label: 'Bluesky',  color: 'text-[#0085ff]' },
   { slug: 'rss',        label: 'RSS',      color: 'text-[#f26522]' },
 ]
 
