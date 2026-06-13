@@ -7,6 +7,7 @@ import { isSourceType, SOURCE_TYPES } from '@/lib/sources/types'
 import { categorize, float32ToBytes } from '@/lib/categorize'
 import { runClustering } from '@/lib/cluster'
 import { DIRECTORY } from '@/lib/directory'
+import { diversifyBySource } from '@/lib/feed-order'
 import { searchRankedItems } from '@/lib/search'
 import { discoverFeed } from '@/lib/sources/discover'
 
@@ -184,7 +185,7 @@ export async function loadMoreItems(
     include: { source: { select: { id: true, type: true, identifier: true, label: true } } },
   })
 
-  const items: LoadedItem[] = rows.map((r) => ({
+  const mapped: LoadedItem[] = rows.map((r) => ({
     id: r.id,
     title: r.title,
     url: r.url,
@@ -198,10 +199,16 @@ export async function loadMoreItems(
     source: r.source,
   }))
 
-  const last = items.at(-1)
-  const nextCursor = items.length === take && last
-    ? { publishedAt: last.publishedAt, id: last.id }
+  // Cursor tracks the chronological boundary (oldest item on the page) and is
+  // computed before reordering, so pagination stays correct.
+  const oldest = mapped.at(-1)
+  const nextCursor = mapped.length === take && oldest
+    ? { publishedAt: oldest.publishedAt, id: oldest.id }
     : null
+
+  // Pinned to a single source? Nothing to diversify. Otherwise spread sources
+  // so the opening screen isn't a wall of whichever feed refreshed last.
+  const items = opts.source ? mapped : diversifyBySource(mapped, (i) => i.source.id)
 
   return { items, nextCursor }
 }

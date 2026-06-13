@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { toggleRead, toggleSaved } from '@/app/actions'
-import { PlatformIcon } from './PlatformIcon'
+import { SourceIcon } from './SourceIcon'
 import { ListenButton } from './ListenButton'
 
 interface FeedItemProps {
@@ -139,7 +139,7 @@ export function FeedItemCard({ item }: FeedItemProps) {
               title="Unread"
             />
           )}
-          <PlatformIcon type={item.source.type} className={`w-4 h-4 ${platformStyles.text}`} />
+          <SourceIcon type={item.source.type} identifier={item.source.identifier} className={`w-4 h-4 ${platformStyles.text}`} />
           <span className={`font-semibold tracking-widest uppercase text-[10px] ${platformStyles.text}`}>{sourceLabel}</span>
           {item.author && <span>· {item.author}</span>}
           <span>· {formatTime(new Date(item.publishedAt))}</span>

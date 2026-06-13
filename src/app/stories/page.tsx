@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
-import { PlatformIcon } from '@/components/PlatformIcon'
+import { SourceIcon } from '@/components/SourceIcon'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,7 +56,6 @@ export default async function StoriesPage() {
                 ]),
               ).values(),
             )
-            const sourceTypes = Array.from(new Set(story.items.map((i) => i.source.type)))
             return (
               <article
                 key={story.id}
@@ -74,10 +73,11 @@ export default async function StoriesPage() {
                       <span>{formatTime(story.lastSeenAt)}</span>
                       <span>·</span>
                       <div className="flex gap-1.5">
-                        {sourceTypes.map((t) => (
-                          <PlatformIcon
-                            key={t}
-                            type={t}
+                        {sources.slice(0, 8).map((s, i) => (
+                          <SourceIcon
+                            key={i}
+                            type={s.type}
+                            identifier={s.identifier}
                             className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400"
                           />
                         ))}

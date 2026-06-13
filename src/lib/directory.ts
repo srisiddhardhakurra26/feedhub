@@ -57,6 +57,27 @@ export const DIRECTORY: DirectoryEntry[] = [
     description: 'Aggregated top headlines across outlets.',
     category: 'World News',
   },
+  {
+    type: 'rss',
+    identifier: 'https://news.google.com/rss/headlines/section/topic/WORLD',
+    label: 'Google News — World',
+    description: 'Aggregated world headlines across outlets.',
+    category: 'World News',
+  },
+  {
+    type: 'rss',
+    identifier: 'https://news.google.com/rss/headlines/section/topic/BUSINESS',
+    label: 'Google News — Business',
+    description: 'Aggregated business and markets headlines.',
+    category: 'Business & Politics',
+  },
+  {
+    type: 'rss',
+    identifier: 'https://news.google.com/rss/headlines/section/topic/SCIENCE',
+    label: 'Google News — Science',
+    description: 'Aggregated science headlines across outlets.',
+    category: 'Science & Ideas',
+  },
 
   // ── Tech & Product ──────────────────────────────────────────
   {

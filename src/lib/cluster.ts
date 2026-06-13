@@ -1,7 +1,17 @@
 import { prisma } from './db'
 import { bytesToFloat32, cosineSim } from './categorize'
 
-const SIMILARITY_THRESHOLD = 0.72
+// Near-duplicate text (a cross-posted link, the same title on two feeds).
+// Holds for any pair regardless of source or timing.
+const STRICT_THRESHOLD = 0.72
+// Same event told in different words by different outlets. Headlines are
+// paraphrased outlet-to-outlet, so same-event title+body embeddings measure
+// ~0.58–0.78 while merely-related stories stay below ~0.45 — but a lower bar
+// only earns its keep with guards, so the news path additionally requires the
+// pair be from *different* sources within NEWS_WINDOW_HOURS of each other.
+const NEWS_THRESHOLD = 0.58
+const NEWS_WINDOW_HOURS = 72
+const NEWS_WINDOW_MS = NEWS_WINDOW_HOURS * 60 * 60 * 1000
 const WINDOW_DAYS = 7
 
 interface CandidateItem {
@@ -19,14 +29,33 @@ export interface ClusterResult {
   storiesUpdated: number
 }
 
-function maxSim(
-  vec: Float32Array,
-  pool: CandidateItem[],
-): { item: CandidateItem; score: number } | null {
-  let best: { item: CandidateItem; score: number } | null = null
+// Whether two items belong in the same story. Returns the cosine similarity
+// when they may cluster, or -1 when they may not — so callers can both gate
+// and rank on one number.
+function clusterScore(a: CandidateItem, b: CandidateItem): number {
+  const sim = cosineSim(a.vec, b.vec)
+  if (sim >= STRICT_THRESHOLD) return sim
+  if (
+    sim >= NEWS_THRESHOLD &&
+    a.sourceId !== b.sourceId &&
+    Math.abs(a.publishedAt.getTime() - b.publishedAt.getTime()) <= NEWS_WINDOW_MS
+  ) {
+    return sim
+  }
+  return -1
+}
+
+// Best item in the pool this item may cluster with (highest qualifying score),
+// or null when none qualify.
+function bestMatch(item: CandidateItem, pool: CandidateItem[]): CandidateItem | null {
+  let best: CandidateItem | null = null
+  let bestScore = -1
   for (const p of pool) {
-    const s = cosineSim(vec, p.vec)
-    if (!best || s > best.score) best = { item: p, score: s }
+    const s = clusterScore(item, p)
+    if (s > bestScore) {
+      bestScore = s
+      best = p
+    }
   }
   return best
 }
@@ -63,16 +92,16 @@ export async function runClustering(): Promise<ClusterResult> {
   let itemsAssigned = 0
   let newStories = 0
 
-  // Pass 1: attach each unassigned item to its nearest existing story if close enough.
+  // Pass 1: attach each unassigned item to a matching existing story.
   const stillUnassigned: CandidateItem[] = []
   for (const item of unassigned) {
-    const best = maxSim(item.vec, assigned)
-    if (best && best.score >= SIMILARITY_THRESHOLD && best.item.storyId) {
+    const match = bestMatch(item, assigned)
+    if (match && match.storyId) {
       await prisma.item.update({
         where: { id: item.id },
-        data: { storyId: best.item.storyId },
+        data: { storyId: match.storyId },
       })
-      item.storyId = best.item.storyId
+      item.storyId = match.storyId
       assigned.push(item)
       itemsAssigned += 1
     } else {
@@ -90,7 +119,7 @@ export async function runClustering(): Promise<ClusterResult> {
     for (let j = i + 1; j < stillUnassigned.length; j++) {
       const other = stillUnassigned[j]
       if (used.has(other.id)) continue
-      if (cosineSim(seed.vec, other.vec) >= SIMILARITY_THRESHOLD) {
+      if (clusterScore(seed, other) > -1) {
         members.push(other)
       }
     }

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { DIRECTORY, DIRECTORY_CATEGORIES } from '@/lib/directory'
 import { DirectoryAddButton } from '@/components/DirectoryAddButton'
-import { PlatformIcon } from '@/components/PlatformIcon'
+import { SourceIcon } from '@/components/SourceIcon'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,8 +47,9 @@ export default async function DiscoverPage() {
                 className="flex items-start justify-between gap-3 rounded-2xl border border-zinc-200/70 dark:border-zinc-800/70 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 <div className="flex items-start gap-3 min-w-0">
-                  <PlatformIcon
+                  <SourceIcon
                     type={entry.type}
+                    identifier={entry.identifier}
                     className={`w-4 h-4 mt-0.5 ${entry.type === 'bluesky' ? 'text-[#0085ff]' : 'text-[#f26522]'}`}
                   />
                   <div className="min-w-0">
