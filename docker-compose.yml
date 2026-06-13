@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    container_name: feedhub-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # DB lives on the named volume so it survives rebuilds and redeploys.
+      DATABASE_URL: file:/data/feedhub.db
+    volumes:
+      - feedhub-data:/data
+    # No published ports: Scour's Caddy is the only thing on 80/443 and reaches
+    # this container by name over the shared network below.
+    expose:
+      - "3000"
+    networks:
+      - edge
+
+networks:
+  # The network Scour's Caddy is attached to. Created/joined by the deploy
+  # workflow; defaults to Scour Compose's default network name.
+  edge:
+    external: true
+    name: ${SCOUR_NETWORK:-scour_default}
+
+volumes:
+  feedhub-data:
