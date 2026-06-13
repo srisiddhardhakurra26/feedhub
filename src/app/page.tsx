@@ -4,6 +4,7 @@ import { FilterTabs } from '@/components/FilterTabs'
 import { RefreshButton } from '@/components/RefreshButton'
 import { SearchInput } from '@/components/SearchInput'
 import { CategoryFilter } from '@/components/CategoryFilter'
+import { DailyPulse } from '@/components/DailyPulse'
 import { FeedList } from '@/components/FeedList'
 
 export const dynamic = 'force-dynamic'
@@ -64,8 +65,11 @@ export default async function HomePage({ searchParams }: PageProps) {
     .map((r) => ({ category: r.category, count: r._count._all }))
     .sort((a, b) => b.count - a.count)
 
+  const showPulse = mode === 'all' && !source && !query && !cat
+
   return (
     <div className="space-y-4">
+      {showPulse && <DailyPulse />}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <FilterTabs current={mode} />

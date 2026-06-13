@@ -127,6 +127,12 @@ export function FeedItemCard({ item }: FeedItemProps) {
       )}
       <div className="flex-1 flex flex-col p-5">
         <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-3 flex-wrap">
+          {!item.isRead && (
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.8)] shrink-0"
+              title="Unread"
+            />
+          )}
           <PlatformIcon type={item.source.type} className={`w-4 h-4 ${platformStyles.text}`} />
           <span className={`font-semibold tracking-widest uppercase text-[10px] ${platformStyles.text}`}>{sourceLabel}</span>
           {item.author && <span>· {item.author}</span>}
@@ -150,19 +156,23 @@ export function FeedItemCard({ item }: FeedItemProps) {
             <button
               type="submit"
               data-feed-action="toggle-read"
-              className="text-xs font-medium px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all active:scale-90 ${
+                item.isRead
+                  ? 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  : 'border-sky-200 dark:border-sky-500/40 bg-sky-50/60 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20'
+              }`}
             >
-              {item.isRead ? 'Mark unread' : 'Mark read'}
+              {item.isRead ? '↺ Unread' : '✓ Read'}
             </button>
           </form>
           <form action={toggleSavedAction}>
             <button
               type="submit"
               data-feed-action="toggle-saved"
-              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all active:scale-90 ${
                 item.isSaved
                   ? 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/50 dark:text-amber-400'
-                  : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                  : 'border-zinc-200 dark:border-zinc-700 hover:border-amber-300 dark:hover:border-amber-500/40 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-400'
               }`}
             >
               {item.isSaved ? '★ Saved' : '☆ Save'}

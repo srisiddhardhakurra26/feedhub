@@ -41,8 +41,21 @@ export function RefreshButton() {
         type="button"
         onClick={onClick}
         disabled={isPending}
-        className="rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-1.5 text-sm font-medium shadow-sm transition-all hover:shadow-md hover:-translate-y-px active:scale-95 disabled:opacity-60 disabled:hover:translate-y-0"
       >
+        <svg
+          className={isPending ? 'animate-spin' : ''}
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+          <path d="M21 3v6h-6" />
+        </svg>
         {isPending ? 'Refreshing…' : 'Refresh'}
       </button>
 

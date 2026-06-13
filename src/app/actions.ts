@@ -6,6 +6,7 @@ import { runFetch } from '@/lib/fetchers/run'
 import { isSourceType, SOURCE_TYPES } from '@/lib/sources/types'
 import { categorize, float32ToBytes } from '@/lib/categorize'
 import { runClustering } from '@/lib/cluster'
+import { searchRankedItems } from '@/lib/search'
 
 export async function addSource(formData: FormData) {
   const type = String(formData.get('type') ?? '')
@@ -39,13 +40,17 @@ export async function deleteSource(id: string) {
   revalidatePath('/')
 }
 
+// Date cursor for the chronological feed; offset cursor for ranked search
+// results (relevance order has no stable date to resume from).
+export type FeedCursor = { publishedAt: string; id: string } | { offset: number }
+
 export interface LoadMoreOptions {
   filter?: 'all' | 'unread' | 'saved'
   source?: string
   sourceIds?: string[]
   q?: string
   category?: string
-  cursor: { publishedAt: string; id: string } | null
+  cursor: FeedCursor | null
   take?: number
 }
 
@@ -70,14 +75,27 @@ export interface LoadedItem {
 
 export async function loadMoreItems(
   opts: LoadMoreOptions,
-): Promise<{ items: LoadedItem[]; nextCursor: { publishedAt: string; id: string } | null }> {
+): Promise<{ items: LoadedItem[]; nextCursor: FeedCursor | null }> {
   const take = Math.min(Math.max(opts.take ?? 24, 1), 60)
+
+  const query = (opts.q ?? '').trim()
+  if (query) {
+    return searchRankedItems({
+      filter: opts.filter,
+      source: opts.source,
+      sourceIds: opts.sourceIds,
+      category: opts.category,
+      q: query,
+      offset: opts.cursor && 'offset' in opts.cursor ? opts.cursor.offset : 0,
+      take,
+    })
+  }
+
   const where: {
     isRead?: boolean
     isSaved?: boolean
     sourceId?: string | { in: string[] }
     category?: string
-    OR?: Array<Record<string, { contains: string }>>
     AND?: Array<Record<string, unknown>>
   } = {}
   if (opts.filter === 'unread') where.isRead = false
@@ -87,14 +105,7 @@ export async function loadMoreItems(
     where.sourceId = { in: opts.sourceIds }
   }
   if (opts.category) where.category = opts.category
-  if (opts.q) {
-    where.OR = [
-      { title: { contains: opts.q } },
-      { body: { contains: opts.q } },
-      { author: { contains: opts.q } },
-    ]
-  }
-  if (opts.cursor) {
+  if (opts.cursor && 'publishedAt' in opts.cursor) {
     const cursorDate = new Date(opts.cursor.publishedAt)
     where.AND = [
       {

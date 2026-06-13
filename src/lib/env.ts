@@ -10,6 +10,7 @@ const schema = z.object({
   REDDIT_USER_AGENT: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  FETCH_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
 })
 
 export type Env = z.infer<typeof schema>

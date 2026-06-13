@@ -24,16 +24,23 @@ export function FilterTabs({ current }: FilterTabsProps) {
     return qs ? `${pathname}?${qs}` : pathname
   }
 
+  const activeIndex = tabs.findIndex((t) => t.key === current)
+
   return (
-    <div className="flex gap-1 text-sm">
+    <div className="relative grid grid-cols-3 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/60 backdrop-blur p-1 text-sm">
+      <span
+        aria-hidden
+        className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-full bg-zinc-900 dark:bg-zinc-100 transition-transform duration-300 ease-out"
+        style={{ transform: `translateX(${activeIndex * 100}%)` }}
+      />
       {tabs.map((t) => (
         <Link
           key={t.key}
           href={href(t.key)}
-          className={`px-3 py-1 rounded-md ${
+          className={`relative z-10 px-4 py-1 text-center rounded-full transition-colors duration-300 ${
             current === t.key
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              ? 'text-white dark:text-zinc-900 font-medium'
+              : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
           }`}
         >
           {t.label}

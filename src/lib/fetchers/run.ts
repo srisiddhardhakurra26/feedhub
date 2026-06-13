@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db'
+import { getEnv } from '@/lib/env'
 import { getAdapter } from '@/lib/sources/registry'
 import { isSourceType } from '@/lib/sources/types'
+import { withHardTimeout } from '@/lib/timeout'
 
 export interface SourceRunResult {
   sourceId: string
@@ -42,10 +44,14 @@ async function runOne(source: {
 
   try {
     const adapter = getAdapter(source.type)
-    const result = await adapter.fetch({
-      identifier: source.identifier,
-      config: source.config,
-    })
+    const result = await withHardTimeout(
+      adapter.fetch({
+        identifier: source.identifier,
+        config: source.config,
+      }),
+      getEnv().FETCH_TIMEOUT_MS,
+      label,
+    )
 
     let newItems = 0
     for (const item of result.items) {

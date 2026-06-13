@@ -1,13 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
-import { loadMoreItems, type LoadedItem, type LoadMoreOptions } from '@/app/actions'
+import { loadMoreItems, type FeedCursor, type LoadedItem, type LoadMoreOptions } from '@/app/actions'
 import { FeedItemCard } from './FeedItemCard'
 import { FeedKeyboard } from './FeedKeyboard'
 
 interface Props {
   initialItems: LoadedItem[]
-  initialCursor: { publishedAt: string; id: string } | null
+  initialCursor: FeedCursor | null
   filterOpts: Omit<LoadMoreOptions, 'cursor' | 'take'>
 }
 
@@ -52,8 +52,13 @@ export function FeedList({ initialItems, initialCursor, filterOpts }: Props) {
     <>
       <FeedKeyboard itemIds={items.map((i) => i.id)} />
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 space-y-6">
-        {items.map((item) => (
-          <div key={item.id} className="break-inside-avoid" data-feed-item-id={item.id}>
+        {items.map((item, i) => (
+          <div
+            key={item.id}
+            className="break-inside-avoid animate-card-in"
+            style={{ animationDelay: `${(i % 24) * 35}ms` }}
+            data-feed-item-id={item.id}
+          >
             <FeedItemCard item={item} />
           </div>
         ))}

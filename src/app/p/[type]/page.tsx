@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
+import { loadMoreItems } from '@/app/actions'
 import { FilterTabs } from '@/components/FilterTabs'
 import { RefreshButton } from '@/components/RefreshButton'
 import { SearchInput } from '@/components/SearchInput'
@@ -93,15 +94,15 @@ export default async function PlatformPage({ params, searchParams }: PageProps) 
     ]
   }
 
-  const itemWhere = cat ? { ...baseWhere, category: cat } : baseWhere
+  const filterOpts = {
+    filter: mode,
+    sourceIds,
+    q: query || undefined,
+    category: cat ?? undefined,
+  }
 
-  const [firstBatch, categoryRows] = await Promise.all([
-    prisma.item.findMany({
-      where: itemWhere,
-      orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
-      take: PAGE_SIZE,
-      include: { source: { select: { id: true, type: true, identifier: true, label: true } } },
-    }),
+  const [firstPage, categoryRows] = await Promise.all([
+    loadMoreItems({ ...filterOpts, cursor: null, take: PAGE_SIZE }),
     prisma.item.groupBy({
       by: ['category'],
       where: baseWhere,
@@ -109,42 +110,9 @@ export default async function PlatformPage({ params, searchParams }: PageProps) 
     }),
   ])
 
-  const initialItems = firstBatch.map((r) => ({
-    id: r.id,
-    title: r.title,
-    url: r.url,
-    author: r.author,
-    body: r.body,
-    thumbnail: r.thumbnail,
-    publishedAt: r.publishedAt.toISOString(),
-    isRead: r.isRead,
-    isSaved: r.isSaved,
-    category: r.category,
-    source: r.source,
-  }))
-
-  const last = initialItems.at(-1)
-  const initialCursor =
-    initialItems.length === PAGE_SIZE && last
-      ? { publishedAt: last.publishedAt, id: last.id }
-      : null
-
   const counts = categoryRows
     .map((r) => ({ category: r.category, count: r._count._all }))
     .sort((a, b) => b.count - a.count)
-
-  // Build a synthetic filterOpts that loadMore can use. We pass the first source id as a hint
-  // since LoadMoreOptions accepts a single source filter; for platform pages, we instead pass
-  // every source id via a small adapter. Simpler: filter via /p/[type] URL preserves the type
-  // and infinite scroll calls a server action with explicit source list. To stay within the
-  // existing loadMoreItems contract, we union the source filter into category-style filtering.
-  // For correctness, the simplest approach: have loadMore accept sourceIds[]. Update accordingly.
-  const filterOpts = {
-    filter: mode,
-    sourceIds,
-    q: query || undefined,
-    category: cat ?? undefined,
-  }
 
   return (
     <div className="space-y-4">
@@ -171,15 +139,15 @@ export default async function PlatformPage({ params, searchParams }: PageProps) 
         basePath={`/p/${type}`}
       />
 
-      {initialItems.length === 0 ? (
+      {firstPage.items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-center text-zinc-500 dark:text-zinc-400">
           {query ? <>No items match &ldquo;{query}&rdquo;.</> : <>No items yet.</>}
         </div>
       ) : (
         <FeedList
           key={`platform:${type}|${mode}|${query}|${cat ?? ''}`}
-          initialItems={initialItems}
-          initialCursor={initialCursor}
+          initialItems={firstPage.items}
+          initialCursor={firstPage.nextCursor}
           filterOpts={filterOpts}
         />
       )}
