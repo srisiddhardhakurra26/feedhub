@@ -1,13 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
-
-function greeting(): string {
-  const h = new Date().getHours()
-  if (h < 5) return 'Up late'
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
-  return 'Good evening'
-}
+import { Greeting } from '@/components/Greeting'
 
 export async function DailyPulse() {
   const since = new Date()
@@ -24,23 +17,10 @@ export async function DailyPulse() {
     }),
   ])
 
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })
-
   return (
     <section className="rounded-2xl border border-zinc-200/70 dark:border-zinc-800/70 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-6 space-y-4">
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-violet-600 via-sky-600 to-emerald-600 dark:from-violet-400 dark:via-sky-400 dark:to-emerald-400 bg-clip-text text-transparent">
-              {greeting()}.
-            </span>
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{today}</p>
-        </div>
+        <Greeting />
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <Link
             href="/?filter=unread"
