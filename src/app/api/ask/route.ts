@@ -22,7 +22,12 @@ const STOPWORDS = new Set(
   ('the a an and or of to in on for is are was were be been being this that these those what whats ' +
     'which who whom how when where why with from about into over after before my your our their it its ' +
     'i you we they me us them do does did can could should would will latest news today feed any some ' +
-    'all more most just like get got new tell show give find any there here').split(' '),
+    'all more most just like get got new tell show give find any there here ' +
+    // Meta/command words: a question made only of these is a generic "what's new"
+    // request, so retrieval falls back to the most recent items.
+    'summarize summarise summary recap overview highlight highlights happening going update updates ' +
+    'anything everything recent recently current currently headline headlines story stories top main ' +
+    'important brief briefing digest roundup please catch up whats').split(' '),
 )
 
 function keywords(q: string): string[] {
