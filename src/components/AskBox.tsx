@@ -6,9 +6,17 @@
 
 import { useState } from 'react'
 
+interface Source {
+  n: number
+  title: string
+  url: string
+  source: string | null
+}
+
 export function AskBox() {
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
+  const [sources, setSources] = useState<Source[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -19,6 +27,7 @@ export function AskBox() {
     setLoading(true)
     setError(null)
     setAnswer(null)
+    setSources([])
     try {
       const res = await fetch('/api/ask', {
         method: 'POST',
@@ -27,7 +36,10 @@ export function AskBox() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) setError(data.error || `Error ${res.status}`)
-      else setAnswer(data.answer || '(no answer)')
+      else {
+        setAnswer(data.answer || '(no answer)')
+        setSources(Array.isArray(data.sources) ? data.sources : [])
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed')
     } finally {
@@ -49,7 +61,7 @@ export function AskBox() {
           type="text"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask anything… (feed-aware answers coming soon)"
+          placeholder="Ask about your feed… e.g. what's the latest on AI?"
           className="flex-1 min-w-0 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2 text-sm outline-none focus:border-sky-400 dark:focus:border-sky-500 transition-colors"
         />
         <button
@@ -68,6 +80,30 @@ export function AskBox() {
         <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
           {answer}
         </p>
+      )}
+      {sources.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1.5">
+            Sources from your feed
+          </p>
+          <ol className="space-y-1">
+            {sources.map((s) => (
+              <li key={s.n} className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                <span className="text-zinc-400 dark:text-zinc-600 mr-1">[{s.n}]</span>
+                <a
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sky-600 dark:text-sky-400 hover:underline"
+                  title={s.title}
+                >
+                  {s.title}
+                </a>
+                {s.source && <span className="text-zinc-400 dark:text-zinc-600"> · {s.source}</span>}
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
     </section>
   )
