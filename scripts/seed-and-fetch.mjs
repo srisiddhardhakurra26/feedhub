@@ -6,7 +6,10 @@
 // docker-entrypoint.sh, waits for the Next server to come up and then:
 //   1. seeds the curated source list (scripts/sources.seed.json) — but only
 //      on a genuinely empty DB, so it never re-adds sources you delete later;
-//   2. triggers one fetch so the feed populates immediately.
+//   2. triggers a fetch so the feed populates immediately;
+//   3. keeps refreshing on an interval (REFRESH_INTERVAL_MS, default 1h) so
+//      the hosted feed stays fresh without anyone clicking Refresh. Set the
+//      interval to 0 to disable the periodic loop (one-shot fetch only).
 //
 // Everything goes through the app's own HTTP API (proper Prisma + adapter
 // handling), using only built-in Node — no extra deps, no API keys.
@@ -52,6 +55,27 @@ async function waitForServer(cookie, tries = 60) {
   return false
 }
 
+async function refreshOnce(cookie) {
+  try {
+    const res = await fetch(`${BASE}/api/refresh`, {
+      method: 'POST',
+      headers: headers(cookie, true),
+      body: '{}',
+    })
+    if (!res.ok) {
+      console.error(`[auto] refresh -> HTTP ${res.status}`)
+      return
+    }
+    const data = await res.json().catch(() => ({}))
+    const results = Array.isArray(data.results) ? data.results : []
+    const ok = results.filter((r) => r.ok).length
+    const newItems = results.reduce((n, r) => n + (r.newItems ?? 0), 0)
+    console.log(`[auto] refresh: ${ok}/${results.length} sources ok, +${newItems} new items`)
+  } catch (err) {
+    console.error(`[auto] refresh failed: ${err.message}`)
+  }
+}
+
 async function main() {
   const cookie = sessionCookie()
 
@@ -95,21 +119,18 @@ async function main() {
     console.log(`[seed] done: +${added} added, ${skipped} already present`)
   }
 
-  // Populate the feed (fetch every enabled source). Safe to run each boot.
-  console.log('[seed] triggering refresh to populate the feed…')
-  try {
-    const res = await fetch(`${BASE}/api/refresh`, { method: 'POST', headers: headers(cookie, true), body: '{}' })
-    if (res.ok) {
-      const data = await res.json().catch(() => ({}))
-      const results = Array.isArray(data.results) ? data.results : []
-      const ok = results.filter((r) => r.ok).length
-      const newItems = results.reduce((n, r) => n + (r.newItems ?? 0), 0)
-      console.log(`[seed] refresh complete: ${ok}/${results.length} sources ok, +${newItems} new items`)
-    } else {
-      console.error(`[seed] refresh -> HTTP ${res.status}`)
-    }
-  } catch (err) {
-    console.error(`[seed] refresh failed: ${err.message}`)
+  // Populate the feed immediately, then keep it fresh on an interval.
+  const intervalMs = Number(process.env.REFRESH_INTERVAL_MS ?? 60 * 60 * 1000)
+  await refreshOnce(cookie)
+
+  if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
+    console.log('[auto] periodic refresh disabled (REFRESH_INTERVAL_MS <= 0)')
+    return
+  }
+  console.log(`[auto] periodic refresh every ${Math.round(intervalMs / 60000)} min`)
+  for (;;) {
+    await new Promise((r) => setTimeout(r, intervalMs))
+    await refreshOnce(cookie)
   }
 }
 

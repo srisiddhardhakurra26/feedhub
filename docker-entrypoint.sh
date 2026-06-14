@@ -6,10 +6,10 @@ set -e
 echo "[feedhub] applying database migrations…"
 npx prisma migrate deploy
 
-# Seed the curated sources + populate the feed in the background. It waits for
-# the server (started just below) to accept requests, seeds only if the DB is
-# empty, then triggers one fetch. Backgrounded so it never blocks startup;
-# survives the exec below as an orphaned short-lived process.
+# Seed the curated sources + keep the feed fresh, in the background. It waits
+# for the server (started just below) to accept requests, seeds only if the DB
+# is empty, fetches once, then refreshes on an interval (REFRESH_INTERVAL_MS).
+# Backgrounded so it never blocks startup; survives the exec below.
 echo "[feedhub] launching background seed/refresh…"
 node /app/scripts/seed-and-fetch.mjs &
 
