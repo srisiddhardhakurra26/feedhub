@@ -74,7 +74,11 @@ jobs:
 
           echo "::group::4. build + (re)start feedhub"
           cd "$DIR"
-          sudo docker compose up -d --build
+          # --remove-orphans: the service was renamed app -> feedhub to stop it
+          # claiming the "app" DNS alias that collided with Scour. Without this,
+          # the old "app"-named container lingers and the new one fails to take
+          # the feedhub-app container_name. Safe: data lives on the named volume.
+          sudo docker compose up -d --build --remove-orphans
           sudo docker image prune -f
           echo "::endgroup::"
 

@@ -1,5 +1,11 @@
 services:
-  app:
+  # IMPORTANT: this service must NOT be named "app". Compose registers the
+  # service name as a DNS alias on the shared network below, and Scour's own
+  # service is named "app" too. Two "app" aliases on scour_default make the
+  # name resolve to BOTH containers, so Scour's Caddy (reverse_proxy app:3000)
+  # round-robins onto feedhub — the apex randomly served feedhub. Keep it
+  # unique. Caddy reaches this container via its container_name (feedhub-app).
+  feedhub:
     build: .
     container_name: feedhub-app
     restart: unless-stopped
