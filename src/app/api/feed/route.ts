@@ -12,11 +12,9 @@ export async function GET(request: NextRequest) {
   const cursor = params.get('cursor') ?? undefined
 
   const where: {
-    isRead?: boolean
     isSaved?: boolean
     sourceId?: string
   } = {}
-  if (filter === 'unread') where.isRead = false
   if (filter === 'saved') where.isSaved = true
   if (sourceId) where.sourceId = sourceId
 

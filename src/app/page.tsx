@@ -23,18 +23,15 @@ interface PageProps {
 
 export default async function HomePage({ searchParams }: PageProps) {
   const { filter, source, q, category } = await searchParams
-  const mode: 'all' | 'unread' | 'saved' =
-    filter === 'unread' || filter === 'saved' ? filter : 'all'
+  const mode: 'all' | 'saved' = filter === 'saved' ? 'saved' : 'all'
   const query = (q ?? '').trim()
   const cat = (category ?? '').trim() || null
 
   const baseWhere: {
-    isRead?: boolean
     isSaved?: boolean
     sourceId?: string
     OR?: Array<Record<string, { contains: string }>>
   } = {}
-  if (mode === 'unread') baseWhere.isRead = false
   if (mode === 'saved') baseWhere.isSaved = true
   if (source) baseWhere.sourceId = source
   if (query) {

@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { toggleRead, toggleSaved } from '@/app/actions'
+import { toggleSaved } from '@/app/actions'
 import { SourceIcon } from './SourceIcon'
 import { ListenButton } from './ListenButton'
 
@@ -14,7 +14,6 @@ interface FeedItemProps {
     body: string | null
     thumbnail: string | null
     publishedAt: Date | string
-    isRead: boolean
     isSaved: boolean
     category: string | null
     source: {
@@ -109,15 +108,12 @@ function getPlatformStyles(type: string) {
 
 export function FeedItemCard({ item }: FeedItemProps) {
   const sourceLabel = item.source.label ?? `${item.source.type}/${item.source.identifier}`
-  const toggleReadAction = toggleRead.bind(null, item.id)
   const toggleSavedAction = toggleSaved.bind(null, item.id)
   const platformStyles = getPlatformStyles(item.source.type)
 
   return (
     <article
-      className={`group flex flex-col rounded-2xl border bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 ${
-        item.isRead ? 'opacity-60 grayscale-[0.3]' : ''
-      } ${platformStyles.border} ${platformStyles.glow}`}
+      className={`group flex flex-col rounded-2xl border bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 ${platformStyles.border} ${platformStyles.glow}`}
     >
       {item.thumbnail && (
         <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full overflow-hidden rounded-t-2xl -mt-[2px] -ml-[1px] -mr-[1px] w-[calc(100%+2px)] shrink-0">
@@ -133,12 +129,6 @@ export function FeedItemCard({ item }: FeedItemProps) {
       )}
       <div className="flex-1 flex flex-col p-5">
         <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-3 flex-wrap">
-          {!item.isRead && (
-            <span
-              className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_6px_rgba(14,165,233,0.8)] shrink-0"
-              title="Unread"
-            />
-          )}
           <SourceIcon type={item.source.type} identifier={item.source.identifier} className={`w-4 h-4 ${platformStyles.text}`} />
           <span className={`font-semibold tracking-widest uppercase text-[10px] ${platformStyles.text}`}>{sourceLabel}</span>
           {item.author && <span>· {item.author}</span>}
@@ -158,19 +148,6 @@ export function FeedItemCard({ item }: FeedItemProps) {
           <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3 leading-relaxed">{item.body}</p>
         )}
         <div className="flex gap-2 mt-4 pt-4 border-t border-zinc-200/50 dark:border-zinc-800/50 mt-auto">
-          <form action={toggleReadAction}>
-            <button
-              type="submit"
-              data-feed-action="toggle-read"
-              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all active:scale-90 ${
-                item.isRead
-                  ? 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                  : 'border-sky-200 dark:border-sky-500/40 bg-sky-50/60 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20'
-              }`}
-            >
-              {item.isRead ? '↺ Unread' : '✓ Read'}
-            </button>
-          </form>
           <form action={toggleSavedAction}>
             <button
               type="submit"

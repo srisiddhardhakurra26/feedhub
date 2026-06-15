@@ -5,8 +5,7 @@ import { Greeting } from '@/components/Greeting'
 export async function DailyPulse() {
   const since = new Date()
   since.setHours(since.getHours() - 24)
-  const [unread, newToday, saved, stories] = await Promise.all([
-    prisma.item.count({ where: { isRead: false } }),
+  const [newToday, saved, stories] = await Promise.all([
     prisma.item.count({ where: { fetchedAt: { gte: since } } }),
     prisma.item.count({ where: { isSaved: true } }),
     prisma.story.findMany({
@@ -22,12 +21,6 @@ export async function DailyPulse() {
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <Greeting />
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          <Link
-            href="/?filter=unread"
-            className="px-3 py-1.5 rounded-full border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20 transition-colors"
-          >
-            <strong className="font-semibold">{unread.toLocaleString()}</strong> unread
-          </Link>
           <span className="px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
             <strong className="font-semibold">{newToday.toLocaleString()}</strong> new today
           </span>

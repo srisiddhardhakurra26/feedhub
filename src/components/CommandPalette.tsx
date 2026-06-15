@@ -30,7 +30,6 @@ const STATIC_ACTIONS: Action[] = [
   { id: 'stories', group: 'Pages', label: 'Stories', hint: 'Cross-source coverage', run: (r) => r.push('/stories') },
   { id: 'discover', group: 'Pages', label: 'Discover sources', hint: 'Add free sources', run: (r) => r.push('/discover') },
   { id: 'accounts', group: 'Pages', label: 'Accounts & sources', run: (r) => r.push('/accounts') },
-  { id: 'unread', group: 'Filters', label: 'Unread items', run: (r) => r.push('/?filter=unread') },
   { id: 'saved', group: 'Filters', label: 'Saved items', run: (r) => r.push('/?filter=saved') },
   ...PLATFORMS.map((p): Action => ({
     id: `p-${p.slug}`,

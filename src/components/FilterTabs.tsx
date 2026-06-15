@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 interface FilterTabsProps {
-  current: 'all' | 'unread' | 'saved'
+  current: 'all' | 'saved'
 }
 
 export function FilterTabs({ current }: FilterTabsProps) {
@@ -12,11 +12,10 @@ export function FilterTabs({ current }: FilterTabsProps) {
   const pathname = usePathname() || '/'
   const tabs = [
     { key: 'all', label: 'All' },
-    { key: 'unread', label: 'Unread' },
     { key: 'saved', label: 'Saved' },
   ] as const
 
-  function href(key: 'all' | 'unread' | 'saved'): string {
+  function href(key: 'all' | 'saved'): string {
     const sp = new URLSearchParams(params.toString())
     if (key === 'all') sp.delete('filter')
     else sp.set('filter', key)
@@ -27,10 +26,10 @@ export function FilterTabs({ current }: FilterTabsProps) {
   const activeIndex = tabs.findIndex((t) => t.key === current)
 
   return (
-    <div className="relative grid grid-cols-3 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/60 backdrop-blur p-1 text-sm">
+    <div className="relative grid grid-cols-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/60 dark:bg-zinc-900/60 backdrop-blur p-1 text-sm">
       <span
         aria-hidden
-        className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-full bg-zinc-900 dark:bg-zinc-100 transition-transform duration-300 ease-out"
+        className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/2)] rounded-full bg-zinc-900 dark:bg-zinc-100 transition-transform duration-300 ease-out"
         style={{ transform: `translateX(${activeIndex * 100}%)` }}
       />
       {tabs.map((t) => (

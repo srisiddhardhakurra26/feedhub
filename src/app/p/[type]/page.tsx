@@ -47,8 +47,7 @@ export default async function PlatformPage({ params, searchParams }: PageProps) 
   if (!isSourceType(type)) notFound()
 
   const { filter, q, category } = await searchParams
-  const mode: 'all' | 'unread' | 'saved' =
-    filter === 'unread' || filter === 'saved' ? filter : 'all'
+  const mode: 'all' | 'saved' = filter === 'saved' ? 'saved' : 'all'
   const query = (q ?? '').trim()
   const cat = (category ?? '').trim() || null
 
@@ -81,12 +80,10 @@ export default async function PlatformPage({ params, searchParams }: PageProps) 
   }
 
   const baseWhere: {
-    isRead?: boolean
     isSaved?: boolean
     sourceId?: { in: string[] }
     OR?: Array<Record<string, { contains: string }>>
   } = { sourceId: { in: sourceIds } }
-  if (mode === 'unread') baseWhere.isRead = false
   if (mode === 'saved') baseWhere.isSaved = true
   if (query) {
     baseWhere.OR = [

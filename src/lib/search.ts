@@ -22,7 +22,7 @@ const TEXT_BOOST = 0.15
 const CANDIDATE_LIMIT = 5000
 
 export interface RankedSearchOptions {
-  filter?: 'all' | 'unread' | 'saved'
+  filter?: 'all' | 'saved'
   source?: string
   sourceIds?: string[]
   category?: string
@@ -45,12 +45,10 @@ export interface RankedSearchResult {
  */
 export async function searchRankedItems(opts: RankedSearchOptions): Promise<RankedSearchResult> {
   const where: {
-    isRead?: boolean
     isSaved?: boolean
     sourceId?: string | { in: string[] }
     category?: string
   } = {}
-  if (opts.filter === 'unread') where.isRead = false
   if (opts.filter === 'saved') where.isSaved = true
   if (opts.source) where.sourceId = opts.source
   else if (opts.sourceIds && opts.sourceIds.length > 0) {
@@ -70,7 +68,6 @@ export async function searchRankedItems(opts: RankedSearchOptions): Promise<Rank
       body: true,
       thumbnail: true,
       publishedAt: true,
-      isRead: true,
       isSaved: true,
       category: true,
       embedding: true,
@@ -111,7 +108,6 @@ export async function searchRankedItems(opts: RankedSearchOptions): Promise<Rank
     body: row.body,
     thumbnail: row.thumbnail,
     publishedAt: row.publishedAt.toISOString(),
-    isRead: row.isRead,
     isSaved: row.isSaved,
     category: row.category,
     source: row.source,

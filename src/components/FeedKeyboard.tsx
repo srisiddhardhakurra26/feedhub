@@ -119,9 +119,6 @@ export function FeedKeyboard({ itemIds }: Props) {
       if (key === 's') {
         e.preventDefault()
         click(currentId, 'toggle-saved')
-      } else if (key === 'r') {
-        e.preventDefault()
-        click(currentId, 'toggle-read')
       } else if (key === 'o' || key === 'Enter') {
         e.preventDefault()
         openLink(currentId)
@@ -167,7 +164,6 @@ export function FeedKeyboard({ itemIds }: Props) {
             ['G', 'Jump to bottom'],
             ['o / Enter', 'Open in new tab'],
             ['s', 'Toggle save'],
-            ['r', 'Toggle read'],
             ['/', 'Focus search'],
             ['?', 'Show this help'],
             ['Esc', 'Clear focus / close'],

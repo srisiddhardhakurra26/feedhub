@@ -106,7 +106,7 @@ export async function addDirectorySource(input: { type: string; identifier: stri
 export type FeedCursor = { publishedAt: string; id: string } | { offset: number }
 
 export interface LoadMoreOptions {
-  filter?: 'all' | 'unread' | 'saved'
+  filter?: 'all' | 'saved'
   source?: string
   sourceIds?: string[]
   q?: string
@@ -123,7 +123,6 @@ export interface LoadedItem {
   body: string | null
   thumbnail: string | null
   publishedAt: string
-  isRead: boolean
   isSaved: boolean
   category: string | null
   source: {
@@ -153,13 +152,11 @@ export async function loadMoreItems(
   }
 
   const where: {
-    isRead?: boolean
     isSaved?: boolean
     sourceId?: string | { in: string[] }
     category?: string
     AND?: Array<Record<string, unknown>>
   } = {}
-  if (opts.filter === 'unread') where.isRead = false
   if (opts.filter === 'saved') where.isSaved = true
   if (opts.source) where.sourceId = opts.source
   else if (opts.sourceIds && opts.sourceIds.length > 0) {
@@ -193,7 +190,6 @@ export async function loadMoreItems(
     body: r.body,
     thumbnail: r.thumbnail,
     publishedAt: r.publishedAt.toISOString(),
-    isRead: r.isRead,
     isSaved: r.isSaved,
     category: r.category,
     source: r.source,
@@ -257,13 +253,6 @@ export async function categorizeAll() {
   const n = await categorizeUncategorized()
   revalidatePath('/')
   return { categorized: n }
-}
-
-export async function toggleRead(id: string) {
-  const item = await prisma.item.findUnique({ where: { id }, select: { isRead: true } })
-  if (!item) return
-  await prisma.item.update({ where: { id }, data: { isRead: !item.isRead } })
-  revalidatePath('/')
 }
 
 export async function toggleSaved(id: string) {
