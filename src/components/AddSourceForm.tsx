@@ -83,6 +83,16 @@ export function AddSourceForm() {
           {isPending ? 'Adding…' : 'Add'}
         </button>
       </div>
+      <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400 select-none">
+        <input
+          type="checkbox"
+          name="fast"
+          className="h-3.5 w-3.5 rounded border-zinc-300 dark:border-zinc-700"
+        />
+        <span>
+          ⚡ Breaking — poll every few minutes (sports results, live news) instead of hourly.
+        </span>
+      </label>
       {state && 'error' in state && (
         <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
       )}

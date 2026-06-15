@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { SOURCE_TYPES } from '@/lib/sources/types'
+import { withFast } from '@/lib/sources/fast'
 
 export const runtime = 'nodejs'
 
@@ -9,6 +10,8 @@ const createSchema = z.object({
   type: z.enum(SOURCE_TYPES),
   identifier: z.string().min(1).trim(),
   label: z.string().trim().optional(),
+  // Breaking feeds the fast-refresh loop should poll more often.
+  fast: z.boolean().optional(),
 })
 
 export async function GET() {
@@ -32,6 +35,7 @@ export async function POST(request: NextRequest) {
         type: parsed.data.type,
         identifier: parsed.data.identifier,
         label: parsed.data.label ?? null,
+        config: withFast(null, parsed.data.fast ?? false),
       },
     })
     return NextResponse.json({ source }, { status: 201 })

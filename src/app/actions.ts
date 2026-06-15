@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { runFetch } from '@/lib/fetchers/run'
 import { isSourceType, SOURCE_TYPES } from '@/lib/sources/types'
+import { withFast } from '@/lib/sources/fast'
 import { categorize, float32ToBytes } from '@/lib/categorize'
 import { runClustering } from '@/lib/cluster'
 import { DIRECTORY } from '@/lib/directory'
@@ -15,6 +16,7 @@ export async function addSource(formData: FormData) {
   const type = String(formData.get('type') ?? '')
   let identifier = String(formData.get('identifier') ?? '').trim()
   let label = String(formData.get('label') ?? '').trim() || null
+  const fast = formData.get('fast') != null
 
   if (!isSourceType(type)) {
     return { error: `Invalid source type. Must be one of: ${SOURCE_TYPES.join(', ')}` }
@@ -38,7 +40,9 @@ export async function addSource(formData: FormData) {
 
   let source
   try {
-    source = await prisma.source.create({ data: { type, identifier, label } })
+    source = await prisma.source.create({
+      data: { type, identifier, label, config: withFast(null, fast) },
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (message.includes('Unique constraint')) {
@@ -67,6 +71,19 @@ export async function deleteSource(id: string) {
   await prisma.source.delete({ where: { id } })
   revalidatePath('/sources')
   revalidatePath('/')
+}
+
+// Toggle whether a source is on the fast-refresh tier. Reads the current
+// config so we preserve any adapter-stored keys (cursors, subscription flags).
+export async function setSourceFast(id: string, fast: boolean) {
+  const source = await prisma.source.findUnique({ where: { id }, select: { config: true } })
+  if (!source) return
+  await prisma.source.update({
+    where: { id },
+    data: { config: withFast(source.config, fast) },
+  })
+  revalidatePath('/accounts')
+  revalidatePath('/sources')
 }
 
 // One-click add from the curated /discover directory. Only entries that exist

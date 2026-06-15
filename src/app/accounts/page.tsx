@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
-import { deleteSource } from '@/app/actions'
+import { deleteSource, setSourceFast } from '@/app/actions'
+import { isFast } from '@/lib/sources/fast'
 import { RedditConnectCard } from '@/components/RedditConnectCard'
 import { GoogleConnectCard } from '@/components/GoogleConnectCard'
 import { HackerNewsCard } from '@/components/HackerNewsCard'
@@ -149,13 +150,22 @@ export default async function AccountsPage({ searchParams }: PageProps) {
           <ul className="space-y-2">
             {visibleSources.map((s) => {
               const del = deleteSource.bind(null, s.id)
+              const fast = isFast(s.config)
+              const toggleFast = setSourceFast.bind(null, s.id, !fast)
               return (
                 <li
                   key={s.id}
                   className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 flex items-center gap-3"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{s.label ?? s.identifier}</div>
+                    <div className="font-medium truncate flex items-center gap-2">
+                      <span className="truncate">{s.label ?? s.identifier}</span>
+                      {fast && (
+                        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                          ⚡ Fast
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                       {TYPE_LABEL[s.type] ?? s.type} · {s.identifier} · {s._count.items} items
                     </div>
@@ -168,6 +178,15 @@ export default async function AccountsPage({ searchParams }: PageProps) {
                       </div>
                     )}
                   </div>
+                  <form action={toggleFast}>
+                    <button
+                      type="submit"
+                      title={fast ? 'Move to the hourly tier' : 'Poll every few minutes'}
+                      className="text-xs px-2 py-1 rounded border border-zinc-200 dark:border-zinc-700 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 dark:hover:bg-amber-950 dark:hover:border-amber-800 dark:hover:text-amber-400"
+                    >
+                      {fast ? 'Unset fast' : '⚡ Make fast'}
+                    </button>
+                  </form>
                   <form action={del}>
                     <button
                       type="submit"

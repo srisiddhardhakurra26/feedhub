@@ -76,6 +76,70 @@ async function refreshOnce(cookie) {
   }
 }
 
+// IDs of sources tagged fast (config { "fast": true }). Re-read each tick so
+// feeds you mark fast in the UI are picked up without restarting the script.
+async function fastSourceIds(cookie) {
+  try {
+    const res = await fetch(`${BASE}/api/sources`, { headers: headers(cookie) })
+    if (!res.ok) return []
+    const data = await res.json().catch(() => ({}))
+    const sources = Array.isArray(data.sources) ? data.sources : []
+    return sources
+      .filter((s) => {
+        if (!s.config) return false
+        try {
+          return Boolean(JSON.parse(s.config)?.fast)
+        } catch {
+          return false
+        }
+      })
+      .map((s) => s.id)
+  } catch (err) {
+    console.error(`[fast] could not list sources: ${err.message}`)
+    return []
+  }
+}
+
+async function refreshFast(cookie) {
+  const ids = await fastSourceIds(cookie)
+  if (ids.length === 0) {
+    console.log('[fast] no fast sources — skipping')
+    return
+  }
+  try {
+    const res = await fetch(`${BASE}/api/refresh`, {
+      method: 'POST',
+      headers: headers(cookie, true),
+      body: JSON.stringify({ sourceIds: ids }),
+    })
+    if (!res.ok) {
+      console.error(`[fast] refresh -> HTTP ${res.status}`)
+      return
+    }
+    const data = await res.json().catch(() => ({}))
+    const results = Array.isArray(data.results) ? data.results : []
+    const ok = results.filter((r) => r.ok).length
+    const newItems = results.reduce((n, r) => n + (r.newItems ?? 0), 0)
+    console.log(`[fast] refresh: ${ok}/${results.length} fast sources ok, +${newItems} new items`)
+  } catch (err) {
+    console.error(`[fast] refresh failed: ${err.message}`)
+  }
+}
+
+// Self-scheduling loop: waits, runs fn, then schedules the next run only after
+// fn settles — so a slow fetch never overlaps the next tick.
+function loop(intervalMs, fn) {
+  setTimeout(async () => {
+    try {
+      await fn()
+    } catch (err) {
+      console.error('[auto] loop iteration failed:', err.message)
+    } finally {
+      loop(intervalMs, fn)
+    }
+  }, intervalMs)
+}
+
 async function main() {
   const cookie = sessionCookie()
 
@@ -107,7 +171,12 @@ async function main() {
         const res = await fetch(`${BASE}/api/sources`, {
           method: 'POST',
           headers: headers(cookie, true),
-          body: JSON.stringify({ type: s.type, identifier: s.identifier, label: s.label ?? undefined }),
+          body: JSON.stringify({
+            type: s.type,
+            identifier: s.identifier,
+            label: s.label ?? undefined,
+            fast: s.fast ?? undefined,
+          }),
         })
         if (res.status === 201) added++
         else if (res.status === 409) skipped++
@@ -119,18 +188,55 @@ async function main() {
     console.log(`[seed] done: +${added} added, ${skipped} already present`)
   }
 
-  // Populate the feed immediately, then keep it fresh on an interval.
-  const intervalMs = Number(process.env.REFRESH_INTERVAL_MS ?? 60 * 60 * 1000)
+  // The main seed above is empty-DB-only (so it never re-adds sources you
+  // delete). The breaking-news feeds are different: they're the heart of the
+  // fast tier and small in number, so we ensure they exist on EVERY boot —
+  // that's how an already-populated DB picks them up. Trade-off: deleting a
+  // fast seed will see it return on the next deploy; remove it from
+  // sources.seed.json (or just toggle fast off) instead of deleting.
+  if (existingCount !== null && existingCount > 0) {
+    try {
+      const seeds = JSON.parse(await readFile(SEED_FILE, 'utf8'))
+      const fastSeeds = seeds.filter((s) => s.fast)
+      let added = 0
+      for (const s of fastSeeds) {
+        const res = await fetch(`${BASE}/api/sources`, {
+          method: 'POST',
+          headers: headers(cookie, true),
+          body: JSON.stringify({
+            type: s.type,
+            identifier: s.identifier,
+            label: s.label ?? undefined,
+            fast: true,
+          }),
+        })
+        if (res.status === 201) added++
+      }
+      if (added > 0) console.log(`[seed] ensured fast feeds: +${added} breaking source(s) added`)
+    } catch (err) {
+      console.error(`[seed] could not ensure fast feeds: ${err.message}`)
+    }
+  }
+
+  // Populate the feed immediately, then keep it fresh on two cadences: a slow
+  // loop over ALL sources, and a fast loop over just the breaking ones.
   await refreshOnce(cookie)
 
-  if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
-    console.log('[auto] periodic refresh disabled (REFRESH_INTERVAL_MS <= 0)')
-    return
+  const slowMs = Number(process.env.REFRESH_INTERVAL_MS ?? 60 * 60 * 1000)
+  const fastMs = Number(process.env.FAST_REFRESH_INTERVAL_MS ?? 5 * 60 * 1000)
+
+  if (Number.isFinite(slowMs) && slowMs > 0) {
+    console.log(`[auto] slow refresh (all sources) every ${Math.round(slowMs / 60000)} min`)
+    loop(slowMs, () => refreshOnce(cookie))
+  } else {
+    console.log('[auto] slow refresh disabled (REFRESH_INTERVAL_MS <= 0)')
   }
-  console.log(`[auto] periodic refresh every ${Math.round(intervalMs / 60000)} min`)
-  for (;;) {
-    await new Promise((r) => setTimeout(r, intervalMs))
-    await refreshOnce(cookie)
+
+  if (Number.isFinite(fastMs) && fastMs > 0) {
+    console.log(`[fast] fast refresh (breaking sources) every ${Math.round(fastMs / 60000)} min`)
+    loop(fastMs, () => refreshFast(cookie))
+  } else {
+    console.log('[fast] fast refresh disabled (FAST_REFRESH_INTERVAL_MS <= 0)')
   }
 }
 
