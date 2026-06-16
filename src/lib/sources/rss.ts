@@ -83,6 +83,14 @@ export async function fetchRssFeed(url: string): Promise<NormalizedItem[]> {
     throw new Error(`Feed fetch failed: ${res.status} ${res.statusText} for ${url}`)
   }
   const xml = await res.text()
+  // Some hosts (e.g. ESPN behind Akamai) return HTTP 200 with an HTML
+  // bot-challenge page instead of the feed when hit from a datacenter IP.
+  // rss-parser would just throw "Unable to parse XML." — surface the real cause.
+  const stripped = xml.charCodeAt(0) === 0xfeff ? xml.slice(1) : xml
+  const head = stripped.trimStart().slice(0, 200).toLowerCase()
+  if (head.startsWith('<!doctype html') || head.startsWith('<html')) {
+    throw new Error(`Feed returned an HTML page, not a feed (blocked/bot-walled or not an RSS URL): ${url}`)
+  }
   const feed = await parser.parseString(xml)
   const items = feed.items ?? []
 
