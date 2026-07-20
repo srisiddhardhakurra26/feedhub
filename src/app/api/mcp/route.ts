@@ -28,6 +28,35 @@ interface JsonRpcError {
 
 type JsonRpcResponse = JsonRpcSuccess | JsonRpcError
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function parseRpcRequest(value: unknown): JsonRpcRequest | JsonRpcError {
+  if (!isRecord(value)) return err(null, -32600, 'Invalid Request')
+
+  const id = value.id
+  const hasValidId =
+    id === undefined ||
+    id === null ||
+    typeof id === 'string' ||
+    typeof id === 'number'
+  if (value.jsonrpc !== '2.0' || typeof value.method !== 'string' || !hasValidId) {
+    return err(hasValidId ? id : null, -32600, 'Invalid Request')
+  }
+
+  if (value.params !== undefined && !isRecord(value.params)) {
+    return err(id, -32602, 'params must be an object when provided')
+  }
+
+  return {
+    jsonrpc: '2.0',
+    id,
+    method: value.method,
+    params: value.params,
+  }
+}
+
 function ok(id: JsonRpcRequest['id'], result: unknown): JsonRpcSuccess {
   return { jsonrpc: '2.0', id: id ?? null, result }
 }
@@ -121,13 +150,15 @@ export async function POST(request: NextRequest) {
   if (Array.isArray(body)) {
     const responses: JsonRpcResponse[] = []
     for (const item of body) {
-      const res = await handleRpc(item as JsonRpcRequest)
+      const parsed = parseRpcRequest(item)
+      const res = 'error' in parsed ? parsed : await handleRpc(parsed)
       if (res) responses.push(res)
     }
     return NextResponse.json(responses)
   }
 
-  const res = await handleRpc(body as JsonRpcRequest)
+  const parsed = parseRpcRequest(body)
+  const res = 'error' in parsed ? parsed : await handleRpc(parsed)
   if (!res) return new NextResponse(null, { status: 204 })
   return NextResponse.json(res)
 }

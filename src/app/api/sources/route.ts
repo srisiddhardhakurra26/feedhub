@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { SOURCE_TYPES } from '@/lib/sources/types'
@@ -38,6 +39,9 @@ export async function POST(request: NextRequest) {
         config: withFast(null, parsed.data.fast ?? false),
       },
     })
+    revalidatePath('/')
+    revalidatePath('/accounts')
+    revalidatePath('/sources')
     return NextResponse.json({ source }, { status: 201 })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

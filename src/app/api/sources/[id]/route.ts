@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
@@ -10,6 +11,9 @@ export async function DELETE(
   const { id } = await params
   try {
     await prisma.source.delete({ where: { id } })
+    revalidatePath('/')
+    revalidatePath('/accounts')
+    revalidatePath('/sources')
     return NextResponse.json({ ok: true })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

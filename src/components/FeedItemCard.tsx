@@ -23,6 +23,7 @@ interface FeedItemProps {
       label: string | null
     }
   }
+  variant?: 'standard' | 'featured' | 'compact'
 }
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -106,14 +107,26 @@ function getPlatformStyles(type: string) {
   }
 }
 
-export function FeedItemCard({ item }: FeedItemProps) {
+export function FeedItemCard({ item, variant = 'standard' }: FeedItemProps) {
   const sourceLabel = item.source.label ?? `${item.source.type}/${item.source.identifier}`
   const toggleSavedAction = toggleSaved.bind(null, item.id)
   const platformStyles = getPlatformStyles(item.source.type)
+  const isFeatured = variant === 'featured'
+  const isCompact = variant === 'compact'
+  const imageHeight = isFeatured ? 'h-64 sm:h-72' : isCompact ? 'h-36' : 'h-52'
+  const titleClass = isFeatured
+    ? 'text-2xl sm:text-3xl leading-tight'
+    : isCompact
+      ? 'text-base leading-snug'
+      : 'text-lg leading-snug'
+  const bodyClass = isFeatured ? 'line-clamp-4' : isCompact ? 'line-clamp-2' : 'line-clamp-3'
+  const imageSizes = isFeatured
+    ? '(min-width: 1024px) 760px, 100vw'
+    : '(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw'
 
   return (
     <article
-      className={`group flex flex-col rounded-2xl border bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 ${platformStyles.border} ${platformStyles.glow}`}
+      className={`group h-full flex flex-col rounded-2xl border bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 ${platformStyles.border} ${platformStyles.glow}`}
     >
       {item.thumbnail && (
         <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full overflow-hidden rounded-t-2xl -mt-[2px] -ml-[1px] -mr-[1px] w-[calc(100%+2px)] shrink-0">
@@ -123,15 +136,17 @@ export function FeedItemCard({ item }: FeedItemProps) {
             width={600}
             height={300}
             unoptimized
-            className="w-full h-52 object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes={imageSizes}
+            loading="lazy"
+            className={`w-full ${imageHeight} object-cover transition-transform duration-500 group-hover:scale-105`}
           />
         </a>
       )}
-      <div className="flex-1 flex flex-col p-5">
+      <div className={`flex-1 flex flex-col ${isCompact ? 'p-4' : 'p-5'}`}>
         <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-3 flex-wrap">
           <SourceIcon type={item.source.type} identifier={item.source.identifier} className={`w-4 h-4 ${platformStyles.text}`} />
-          <span className={`font-semibold tracking-widest uppercase text-[10px] ${platformStyles.text}`}>{sourceLabel}</span>
-          {item.author && <span>· {item.author}</span>}
+          <span className={`font-semibold tracking-widest uppercase text-[10px] ${platformStyles.text} max-w-[14rem] truncate`} title={sourceLabel}>{sourceLabel}</span>
+          {item.author && <span className="max-w-[10rem] truncate" title={item.author}>· {item.author}</span>}
           <span>· {formatTime(new Date(item.publishedAt))}</span>
           {item.category && (
             <span className={`ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full border ${categoryClass(item.category)}`}>
@@ -139,13 +154,15 @@ export function FeedItemCard({ item }: FeedItemProps) {
             </span>
           )}
         </div>
-        <h2 className="font-semibold text-lg leading-snug mb-2 transition-colors group-hover:text-zinc-800 dark:group-hover:text-zinc-200">
+        <h2 className={`font-semibold ${titleClass} mb-2 transition-colors group-hover:text-zinc-800 dark:group-hover:text-zinc-200`}>
           <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:underline decoration-2 underline-offset-4 decoration-zinc-300 dark:decoration-zinc-700">
             {item.title}
           </a>
         </h2>
         {item.body && (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-3 leading-relaxed">{item.body}</p>
+          <p className={`text-sm text-zinc-600 dark:text-zinc-400 ${bodyClass} leading-relaxed`}>
+            {item.body}
+          </p>
         )}
         <div className="flex gap-2 mt-4 pt-4 border-t border-zinc-200/50 dark:border-zinc-800/50 mt-auto">
           <form action={toggleSavedAction}>

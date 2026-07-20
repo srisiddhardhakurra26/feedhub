@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
@@ -16,5 +17,6 @@ export async function POST(
     data: { isSaved: !item.isSaved },
     select: { id: true, isSaved: true },
   })
+  revalidatePath('/')
   return NextResponse.json({ item: updated })
 }
